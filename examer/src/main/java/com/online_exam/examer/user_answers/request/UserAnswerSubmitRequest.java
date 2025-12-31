@@ -11,7 +11,7 @@ import java.util.List;
 public class UserAnswerSubmitRequest {
 
     @NotNull
-    private Long examSubmissionId;
+    private String examSubmissionId;
 
     // List of answers for all questions in the exam
     @NotEmpty
@@ -27,6 +27,7 @@ public class UserAnswerSubmitRequest {
         private String writtenAnswer;
 
         // For MCQ / multiple choice
-        private List<Long> selectedOptionIds;
+        //private List<Long> selectedOptionIds;
+        private List<Integer> selectedOptionIndexes;
     }
 }

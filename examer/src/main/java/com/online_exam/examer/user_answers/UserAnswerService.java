@@ -13,6 +13,7 @@ import com.online_exam.examer.user_answers.request.UserAnswerSubmitRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.online_exam.examer.util.EncryptionUtil;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -28,13 +29,14 @@ public class UserAnswerService implements IUserAnswerService {
     private final QuestionRepository questionRepository;
     private final QuestionOptionRepository questionOptionRepository;
     private final EntityToDtoMapper entityToDtoMapper;
+    private final EncryptionUtil encryptionUtil;
 
     @Override
     @Transactional
     public void submitAnswer(UserAnswerSubmitRequest request) {
 
         // 1️⃣ Fetch the exam submission
-        ExamSubmissionEntity submission = examSubmissionRepository.findById(request.getExamSubmissionId())
+        ExamSubmissionEntity submission = examSubmissionRepository.findById(encryptionUtil.decryptId(request.getExamSubmissionId()))
                 .orElseThrow(() -> new ResourceNotFoundException("Exam submission not found"));
 
         // 2️⃣ Loop through all question answers and save
@@ -50,25 +52,37 @@ public class UserAnswerService implements IUserAnswerService {
             answer.setCreatedDate(LocalDateTime.now());
             userAnswerRepository.save(answer);
 
-            // Save selected MCQ options
-            List<Long> selectedOptionIds = qa.getSelectedOptionIds();
-            if (selectedOptionIds != null && !selectedOptionIds.isEmpty()) {
+            // Save selected MCQ options USING INDEXES
+            List<Integer> selectedIndexes = qa.getSelectedOptionIndexes();
+
+            if (selectedIndexes != null && !selectedIndexes.isEmpty()) {
+
+                List<QuestionOptionEntity> questionOptions = question.getOptions();
                 List<UserAnswerOptionEntity> userAnswerOptions = new ArrayList<>();
-                for (Long optionId : selectedOptionIds) {
-                    QuestionOptionEntity option = questionOptionRepository.findById(optionId)
-                            .orElseThrow(() -> new ResourceNotFoundException("Option not found"));
+
+                for (Integer index : selectedIndexes) {
+
+                    // 🛡 Safety check
+                    if (index < 0 || index >= questionOptions.size()) {
+                        throw new ResourceNotFoundException("Invalid option index: " + index);
+                    }
+
+                    QuestionOptionEntity option = questionOptions.get(index);
+
                     UserAnswerOptionEntity uao = new UserAnswerOptionEntity();
                     uao.setUserAnswer(answer);
                     uao.setOption(option);
 
-                    // 🔥 THIS LINE FIXES THE SCORE
+                    // ✅ IMPORTANT: keep relationship in memory (fixes score issue)
                     answer.getSelectedOptions().add(uao);
 
                     userAnswerOptions.add(uao);
-
                 }
-                //userAnswerOptionRepository.saveAll(userAnswerOptions);
+
+                // Optional: NOT needed if cascade = ALL (which you already have)
+                // userAnswerOptionRepository.saveAll(userAnswerOptions);
             }
+
         }
 
         // 3️⃣ Calculate score in a separate method

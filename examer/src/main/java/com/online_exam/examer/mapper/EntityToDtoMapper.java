@@ -91,7 +91,7 @@ public class EntityToDtoMapper {
         }
 
         List<String> optionTexts = new ArrayList<>();
-        List<Integer> correctIndexes = new ArrayList<>();
+        List<Long> correctIndexes = new ArrayList<>();
 
         List<QuestionOptionEntity> options = questionEntity.getOptions();
         for (int i = 0; i < options.size(); i++) {
@@ -99,7 +99,7 @@ public class EntityToDtoMapper {
             optionTexts.add(option.getOptionText());
 
             if (Boolean.TRUE.equals(option.getIsCorrect())) {
-                correctIndexes.add(i);
+                correctIndexes.add((long)i);
             }
         }
 
